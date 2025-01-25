@@ -1,3 +1,4 @@
+// src/api.js
 import { Codex } from "@codex-data/sdk";
 
 const apiKey = process.env.REACT_APP_CODEX_API_KEY || "";
@@ -30,67 +31,43 @@ export const getTopTokens = async (limit, networkFilter, resolution) => {
     );
     return response.listTopTokens;
   } catch (error) {
-    console.error("Erreur lors de la récupération des top tokens:", error);
+    console.error("Error fetching top tokens:", error);
     return [];
   }
 };
 
-export const getTokenEvents = async (address, networkId, limit = 50) => {
+export const getTokenEvents = async (address, networkId, limit = 50, cursor = null) => {
     try {
       const response = await sdk.send(
         `
-        query GetTokenEvents($address: String!, $networkId: Int!, $limit: Int!) {
+        query GetTokenEvents($address: String!, $networkId: Int!, $limit: Int!, $cursor: String) {
           getTokenEvents(
             limit: $limit
+            cursor: $cursor
             query: { address: $address, networkId: $networkId, eventType: Swap }
             direction: DESC
           ) {
             items {
               id
               timestamp
-              eventType
               eventDisplayType
               transactionHash
               maker
               data {
                 ... on SwapEventData {
-                  amountNonLiquidityToken
                   priceUsdTotal
                 }
               }
-              token0SwapValueUsd
-              token1SwapValueUsd
             }
+            cursor
           }
         }
-      `,
-        {
-          address,
-          networkId,
-          limit,
-        }
+        `,
+        { address, networkId, limit, cursor }
       );
-      return response.getTokenEvents.items;
+      return response.getTokenEvents;
     } catch (error) {
-      console.error("Erreur lors de la récupération des événements du token:", error);
-      return [];
+      console.error("Error fetching token events:", error);
+      return { items: [], cursor: null };
     }
-  };
-  export const subscribeToTokenEvents = (address, networkId, callback) => {
-    const subscription = sdk.subscriptions.onTokenEventsCreated(
-      {
-        query: {
-          address,
-          networkId,
-          eventType: "Swap" 
-        }
-      },
-      {
-        next: (data) => callback(data),
-        error: (err) => console.error("Erreur de souscription :", err),
-        complete: () => console.log("Abonnement terminé")
-      }
-    );
-    
-    return subscription;
   };
