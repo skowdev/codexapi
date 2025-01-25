@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getTokenEvents } from "./api";
+import { getTokenEvents, subscribeToTokenEvents } from "./api";
 
 const TokenEvents = ({ address, networkId }) => {
   const [events, setEvents] = useState([]);
@@ -7,37 +7,24 @@ const TokenEvents = ({ address, networkId }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setEvents([]);
-    setLoading(true);
-    setError(null);
+    const fetchInitialEvents = async () => {
+      try {
+        const initialData = await getTokenEvents(address, networkId);
+        setEvents(initialData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInitialEvents();
   }, [address, networkId]);
 
   useEffect(() => {
-    let isMounted = true;
-    let intervalId = null;
+    const subscription = subscribeToTokenEvents(address, networkId, (newEvent) => {
+      setEvents(prev => [newEvent, ...prev.slice(0, 4)]);
+    });
 
-    const fetchEvents = async () => {
-      try {
-        const data = await getTokenEvents(address, networkId);
-        if (isMounted) setEvents(data);
-      } catch (err) {
-        if (isMounted) setError(err.message);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    const startPolling = () => {
-      fetchEvents();
-      intervalId = setInterval(fetchEvents, 10000); 
-    };
-
-    startPolling();
-
-    return () => {
-      isMounted = false;
-      if (intervalId) clearInterval(intervalId);
-    };
   }, [address, networkId]);
 
   if (loading) return <div>Loading transactions...</div>;
@@ -45,7 +32,7 @@ const TokenEvents = ({ address, networkId }) => {
 
   return (
     <div>
-      <h3>Last transactions</h3>
+      <h3>Real time transactions</h3>
       <table>
         <thead>
           <tr>
@@ -58,7 +45,7 @@ const TokenEvents = ({ address, networkId }) => {
         </thead>
         <tbody>
           {events.map((event) => (
-            <tr key={`${event.id}-${event.transactionHash}`}>
+            <tr key={`${event.id}-${Date.now()}`}> 
               <td>{new Date(event.timestamp * 1000).toLocaleString()}</td>
               <td>{event.eventDisplayType}</td>
               <td>{event.maker}</td>

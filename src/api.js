@@ -76,3 +76,21 @@ export const getTokenEvents = async (address, networkId, limit = 50) => {
       return [];
     }
   };
+  export const subscribeToTokenEvents = (address, networkId, callback) => {
+    const subscription = sdk.subscriptions.onTokenEventsCreated(
+      {
+        query: {
+          address,
+          networkId,
+          eventType: "Swap" 
+        }
+      },
+      {
+        next: (data) => callback(data),
+        error: (err) => console.error("Erreur de souscription :", err),
+        complete: () => console.log("Abonnement terminé")
+      }
+    );
+    
+    return subscription;
+  };
